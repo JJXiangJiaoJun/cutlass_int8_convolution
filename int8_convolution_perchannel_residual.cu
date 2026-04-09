@@ -8,7 +8,6 @@
 #include "cutlass/tensor_ref.h"
 #include "cutlass/tensor_view.h"
 #include "cutlass/layout/tensor.h"
-#include "cutlass/util/reference/host/tensor_fill.h"
 #include "cutlass/epilogue/thread/activation.h"
 
 #include "utils/initializer.h"
@@ -78,7 +77,7 @@ using InnerKernelAmpere = typename cutlass::conv::kernel::DefaultConv2dFpropQuan
 >::Kernel;
 
 
-using TestKernel = cutlass::conv::device::ImplicitGemmConvolutionAdapter<InnerKernelAmpere>;
+using TestKernel = cutlass::conv::device::ImplicitGemmConvolution<InnerKernelAmpere>;
 
 // Host reference kernel: (int8 specialization)
 // Formula: output = act(round(binary_op(scale * accum + bias, beta * residual)))
@@ -166,8 +165,8 @@ void host_kernel(const ElementScaleBias* scale,
 }
 
 int main() {
-  int N = 10, C = 128, H = 72, W = 120;
-  int K = 128, R = 3, S = 3;
+  int N = 2, C = 256, H = 64, W = 64;
+  int K = 256, R = 3, S = 3;
   int pad_h = 1, pad_w = 1;
   int stride_h = 1, stride_w = 1;
   int dilation_h = 1, dilation_w = 1;
@@ -217,79 +216,14 @@ int main() {
 
   CHECK_CUDA_ERROR(cudaMalloc((void**)&d_output, sizeof(ElementOutput) * N * K * P * Q));
 
-  cudaEvent_t start_event;
-  cudaEvent_t stop_event;
-
-  CHECK_CUDA_ERROR(cudaEventCreate(&start_event));
-  CHECK_CUDA_ERROR(cudaEventCreate(&stop_event));
-
-  int warmup_iter = 10;
-  int prof_iter = 20;
-  ///< warm up
-  for (int i = 0; i < warmup_iter; i++) {
-    device_kernel(d_scale,
-                  d_input,
-                  d_weight,
-                  d_bias,
-                  d_residual,
-                  d_output,
-                  N,
-                  H,
-                  W,
-                  C,
-                  K,
-                  R,
-                  S,
-                  P,
-                  Q,
-                  pad_h,
-                  pad_w,
-                  stride_h,
-                  stride_w,
-                  dilation_h,
-                  dilation_w,
-                  alpha,
-                  beta);
-  }
-  // cudaDeviceSynchronize();
-
-  cudaEventRecord(start_event);
-  for (int i = 0; i < prof_iter; i++) {
-    device_kernel(d_scale,
-                  d_input,
-                  d_weight,
-                  d_bias,
-                  d_residual,
-                  d_output,
-                  N,
-                  H,
-                  W,
-                  C,
-                  K,
-                  R,
-                  S,
-                  P,
-                  Q,
-                  pad_h,
-                  pad_w,
-                  stride_h,
-                  stride_w,
-                  dilation_h,
-                  dilation_w,
-                  alpha,
-                  beta);
+  for (int i = 0; i < 10; i++) {
+    device_kernel(d_scale, d_input, d_weight, d_bias, d_residual, d_output, N,
+                  H, W, C, K, R, S, P, Q, pad_h, pad_w, stride_h, stride_w,
+                  dilation_h, dilation_w, alpha, beta);
   }
 
-  CHECK_CUDA_ERROR(cudaEventRecord(stop_event));
   CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
-  float total_ms;
-  CHECK_CUDA_ERROR(cudaEventElapsedTime(&total_ms, start_event, stop_event));
-
-  double avg_ms = double(total_ms) / double(prof_iter);
-
-  std::cout << "Run " << prof_iter << " iter, total duration " << total_ms << " ms, avg " << avg_ms
-            << " ms." << std::endl;
 
   ElementOutput* h_result = new ElementOutput[N * P * Q * K];
 
@@ -347,9 +281,6 @@ int main() {
   CHECK_CUDA_ERROR(cudaFree(d_scale));
   CHECK_CUDA_ERROR(cudaFree(d_residual));
   CHECK_CUDA_ERROR(cudaFree(d_output));
-
-  CHECK_CUDA_ERROR(cudaEventDestroy(start_event));
-  CHECK_CUDA_ERROR(cudaEventDestroy(stop_event));
 
   return 0;
 }

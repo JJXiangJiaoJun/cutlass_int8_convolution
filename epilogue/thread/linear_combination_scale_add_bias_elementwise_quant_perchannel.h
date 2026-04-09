@@ -1,7 +1,3 @@
-/*! \file
-  \brief Functor performing linear combination operations used by epilogues.
-*/
-
 #pragma once
 
 #include "cutlass/cutlass.h"
@@ -18,25 +14,6 @@ namespace cutlass {
 namespace epilogue {
 namespace thread {
 
-/**
- * Epilogues for per-channel quantinization.
- *
- *
- * \details
- *  T = alpha * A @ B + beta * C + bias
- * type: ElementCompute    = ElementCompute * ElementAccumulator + ElementCompute * ElementOutput + ElementCompute
- * size: {NPQ, K} = {k} * {NPQ, K} + 1 * {NPQ, K} + {K}
- *  Z = activation(T)
- * size: {NPQ, K} = {NPQ, K}
- * ElementOutput = type_cast(activation(ElementCompute))
- *
- * \details: In common, input and output tyeps as follow:
- *           1. ElementAccumulator => int32_t or uint32_t
- *           2. ElementCompute => float
- *           3. ElementOutput => int8_t
- * To implement this epilogue, we are supposed to rewrite operator function
- * in reason that CUTLASS has bind compute type and output type as same type.
- */
 template<
   typename ElementOutput_,       ///< Data type of final result
   int Count,
