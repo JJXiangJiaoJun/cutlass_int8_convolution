@@ -10,8 +10,6 @@
 #include "cutlass/layout/tensor.h"
 #include "cutlass/util/reference/host/tensor_fill.h"
 #include "cutlass/epilogue/thread/activation.h"
-#include "cutlass/conv/conv2d_problem_size.h"
-#include "cutlass/conv/device/implicit_gemm_convolution.h"
 
 #include "utils/initializer.h"
 #include "conv/kernel/default_conv2d_fprop_quant_with_broadcast.h"
@@ -142,32 +140,29 @@ void device_kernel(const ElementScaleBias* scale,
   op.run();
 }
 
-///< D = relu(scale * (A @ B) + bias)
-///< {N, P, Q, K} = {K} * (NPQK) + {K}
-///< int32_t = float * int32_t + float
+using HostConv2dBroadcast = reference::host::Conv2dBroadcast<
+    ElementA, ElementB, ElementC, ElementOutput,
+    ElementAccumulator, ElementCompute,
+    reference::host::ReLU<ElementCompute>,
+    std::plus<ElementCompute>>;
+
 void host_kernel(const ElementScaleBias* scale,
                  const ElementA* input,
                  const ElementB* weight,
                  const ElementScaleBias* bias,
                  const ElementC* residual,
                  ElementC* output,
-                 int n,
-                 int h,
-                 int w,
-                 int c,
-                 int k,
-                 int r,
-                 int s,
-                 int p,
-                 int q,
-                 int padding_h,
-                 int padding_w,
-                 int stride_h,
-                 int stride_w,
-                 int dilation_h,
-                 int dilation_w,
-                 float alpha,
-                float beta) {
+                 int N, int H, int W, int C,
+                 int K, int R, int S, int P, int Q,
+                 int padding_h, int padding_w,
+                 int stride_h,  int stride_w,
+                 int dilation_h, int dilation_w,
+                 float alpha, float beta) {
+  HostConv2dBroadcast::run(
+      scale, input, weight, bias, residual, output,
+      N, H, W, C, K, R, S, P, Q,
+      padding_h, padding_w, stride_h, stride_w,
+      dilation_h, dilation_w, alpha, beta);
 }
 
 int main() {
@@ -224,7 +219,6 @@ int main() {
 
   cudaEvent_t start_event;
   cudaEvent_t stop_event;
-  cudaError_t res;
 
   CHECK_CUDA_ERROR(cudaEventCreate(&start_event));
   CHECK_CUDA_ERROR(cudaEventCreate(&stop_event));
