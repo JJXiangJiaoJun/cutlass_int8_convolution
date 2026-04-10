@@ -37,8 +37,7 @@ template <
   conv::IteratorAlgorithm IteratorAlgorithm = IteratorAlgorithm::kOptimized,
   conv::StrideSupport StrideSupport = StrideSupport::kStrided,
   int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value,
-  int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value,
-  typename FixedSize = void
+  int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value
 > struct DefaultConv2dFpropQuantPerChannelWithBroadcast;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,8 +84,7 @@ struct DefaultConv2dFpropQuantPerChannelWithBroadcast<
   IteratorAlgorithm,
   StrideSupport,
   AlignmentA,
-  AlignmentB,
-  void  // FixedSize = void
+  AlignmentB
 > {
 
   using ImplicitGemmBase = typename DefaultConv2dFpropQuantPerChannel<

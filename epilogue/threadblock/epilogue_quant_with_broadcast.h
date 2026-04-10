@@ -316,13 +316,11 @@ public:
     //
     static int const kTotalIterations = OutputTileIterator::kIterations;
 
-    // Two separate fragment variables for double buffering (avoids dynamic
-    // array indexing which could spill to local memory).
-    typename TensorTileIterator::Fragment residual_frag_cur;
-    typename TensorTileIterator::Fragment residual_frag_next;
+    typename TensorTileIterator::Fragment residual_frag[2];
+    int cur_buf = 0;
 
     // Prologue: prefetch first residual tile
-    residual_tensor_iterator.load(residual_frag_cur);
+    residual_tensor_iterator.load(residual_frag[cur_buf]);
     ++residual_tensor_iterator;
 
     //
@@ -397,7 +395,7 @@ public:
         //
 
         if (iter + p + 1 < kTotalIterations) {
-          residual_tensor_iterator.load(residual_frag_next);
+          residual_tensor_iterator.load(residual_frag[cur_buf ^ 1]);
           ++residual_tensor_iterator;
         }
 
@@ -408,7 +406,7 @@ public:
         typename OutputTileIterator::Fragment output_fragment;
 
         source.apply_output_operator(output_fragment, output_op, scale_fragment,
-                                     aligned_accum_fragment[0], residual_frag_cur);
+                                     aligned_accum_fragment[0], residual_frag[cur_buf]);
 
         //
         // Pipeline stage 3: Store the final result
@@ -418,10 +416,10 @@ public:
         ++destination_iterator;
 
         //
-        // Advance pipeline: next becomes current
+        // Advance pipeline: swap buffer index
         //
 
-        residual_frag_cur = residual_frag_next;
+        cur_buf ^= 1;
       }
 
       if (Base::kFragmentsPerIteration > 1) {
