@@ -114,7 +114,6 @@ public:
 
   ///< Scale == OnlyAlphaPerChannelScaling.
   ///< Output = scale * accum + beta * residual.
-  ///< \todo: (jhd) compatible with output type half.
   CUTLASS_HOST_DEVICE
   FragmentOutput operator()(const FragmentCompute& scales,
                             const FragmentAccumulator& accum,
@@ -155,7 +154,6 @@ public:
 
   ///< Scale == NoBetaScaling.
   ///< Output = scale * accum + bias
-  ///< \todo: (jhd) compatible with output type half.
   CUTLASS_HOST_DEVICE
   FragmentOutput operator()(const FragmentCompute& scales,
                             const FragmentAccumulator& accum,
